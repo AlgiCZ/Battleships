@@ -1,15 +1,39 @@
 ﻿@page "/"
+@using ServiceDefaults.Models;
 
-
-<div class="boards">
+<div class="game">
     @if (_model == null)
     {
         <p>Loading...</p>
     }
     else
     {
-        <h1>Battleships!</h1>
-        <Battleships.Web.Components.Game.BoardView Dimension="_model.Dimension" Ships="_model.Player1Ships" />
-        <Battleships.Web.Components.Game.BoardView Dimension="_model.Dimension" Ships="_model.Player2Ships" />
+        @if (_model.Status < ServiceDefaults.Models.GameStatus.Created)
+        {
+            <button class="btn btn-primary" @onclick="NewGameClick">New Game</button>
+        }
+        else
+        {
+            <h1>Battleships!</h1>
+
+            <div class="boards">
+                <Battleships.Web.Components.Game.BoardView Dimension="_model.Dimension" Ships="_model.Player1Ships" @ref="_p1Board" />
+                @if (_model.Status >= GameStatus.Player1Turn)
+                {
+                    <Battleships.Web.Components.Game.BoardView Dimension="_model.Dimension" @ref="_p2Board" />
+                }
+            </div>
+            <div class="game-status-panel">
+                @_model.GetGameStatusMessage()
+            </div>
+            if (_model.Status == GameStatus.Planning)
+            {
+                <div class="game-controls">
+                    <button class="btn btn-primary" @onclick="ShuffleClick">Shuffle</button>
+                    <button class="btn btn-primary" @onclick="StartGameClick">Start Game</button>
+                </div>
+            }
+
+        }
     }
 </div>
