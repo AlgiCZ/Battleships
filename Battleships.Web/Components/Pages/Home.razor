@@ -1,0 +1,15 @@
+﻿@page "/"
+
+
+<div class="boards">
+    @if (_model == null)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        <h1>Battleships!</h1>
+        <Battleships.Web.Components.Game.BoardView Dimension="_model.Dimension" Ships="_model.Player1Ships" />
+        <Battleships.Web.Components.Game.BoardView Dimension="_model.Dimension" Ships="_model.Player2Ships" />
+    }
+</div>

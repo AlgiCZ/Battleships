@@ -1,0 +1,11 @@
+﻿@using AvnCanvasHelper
+@using Blazor.Extensions.Canvas
+
+<CanvasHelper @ref="_canvasHelper" RenderFrame="RenderFrame">
+              @* CanvasResized="CanvasResized"
+              RenderFrame="RenderFrame"
+              MouseDown="MouseDown"
+              MouseUp="MouseUp"
+              MouseMove="MouseMove"> *@
+    <BECanvas @ref="_ctx" Width="500" Height="500" />
+</CanvasHelper>
