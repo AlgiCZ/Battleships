@@ -1,36 +1,56 @@
 ﻿@page "/"
-@using ServiceDefaults.Models;
+@page "/{GameId:int}/{PlayerName}"
+@using Battleships.ServiceDefaults.Models
+@using Battleships.Web.Models
 
 <div class="game">
-    @if (_model == null)
+    @if (Model == null)
     {
         <p>Loading...</p>
     }
     else
     {
-        @if (_model.Status < ServiceDefaults.Models.GameStatus.Created)
+        @if (GameId == null)
         {
-            <button class="btn btn-primary" @onclick="NewGameClick">New Game</button>
+            <div style="width: 200px;">
+                <span>Player 1 name:</span>
+                <InputText @bind-Value="Model.Player1Name" placeholder="Enter your name" class="form-control" />
+                <span>Player 2 name:</span>
+                <InputText @bind-Value="Model.Player2Name" placeholder="Enter your name" class="form-control" />
+            </div>
+            <div style="margin-top: 1rem;">
+                <span>Dimmension:</span>
+                <div class="btn-group" role="group" aria-label="Basic example">
+                    @foreach (var item in Model.Dimensions)
+                    {
+                        var isSelected = item.Width == Model.Dimension.Width && item.Height == Model.Dimension.Height;
+                        var cssClass = isSelected ? "btn btn-primary" : "btn btn-secondary";
+                        <button type="button" @onclick="() => Model.SetDimension(item)" class="@cssClass">@($"{item.Width}x{item.Height}")</button>
+                    }
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" @onclick="NewGameClick" style="margin-top: 1rem;">New Game</button>
         }
         else
         {
-            <h1>Battleships!</h1>
+            <h1>Welcome to Battleships, @PlayerName!</h1>
 
             <div class="boards">
-                <Battleships.Web.Components.Game.BoardView Dimension="_model.Dimension" Ships="_model.Player1Ships" @ref="_p1Board" />
-                @if (_model.Status >= GameStatus.Player1Turn)
+                <Battleships.Web.Components.Game.BoardView Dimension="Model.Dimension" Ships="Model.PlayerShips" @ref="_p1Board" PlayerImpacts="Model.PlayerImpacts" />
+                @if (Model.Status >= GameStatus.Player1Turn)
                 {
-                    <Battleships.Web.Components.Game.BoardView Dimension="_model.Dimension" @ref="_p2Board" />
+                    <Battleships.Web.Components.Game.BoardView Dimension="Model.Dimension" @ref="_p2Board" IsOpponent OnImpact="OnImpact" PlayerImpacts="Model.OpponentImpacts" />
                 }
             </div>
             <div class="game-status-panel">
-                @_model.GetGameStatusMessage()
+                @Model.GetGameStatusMessage()
             </div>
-            if (_model.Status == GameStatus.Planning)
+            if (Model.Status == GameStatus.Planning)
             {
                 <div class="game-controls">
                     <button class="btn btn-primary" @onclick="ShuffleClick">Shuffle</button>
-                    <button class="btn btn-primary" @onclick="StartGameClick">Start Game</button>
+                    <button class="btn btn-primary" @onclick="StartGameClick">Ready</button>
                 </div>
             }
 

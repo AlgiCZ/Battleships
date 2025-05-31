@@ -1,11 +1,19 @@
-﻿document.addEventListener('mousemove', function (event) {
-    DotNet.invokeMethodAsync('Battleships.Web.Components', 'OnMouseMove', event.pageX, event.pageY);
-});
+﻿window.getBoundingClientRect = (element) => {
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+        right: rect.right,
+        bottom: rect.bottom
+    };
+};
 
-document.addEventListener('mouseup', function (event) {
-    DotNet.invokeMethodAsync('Battleships.Web.Components', 'OnMouseUp');
-});
+window.openInNewTab = (url) => {
+    window.open(url, "_blank");
+};
 
-document.addEventListener('keydown', function (event) {
-    DotNet.invokeMethodAsync('Battleships.Web.Components', 'OnKeyDown', event.code);
-});
+
+

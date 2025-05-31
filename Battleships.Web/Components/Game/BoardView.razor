@@ -1,3 +1,6 @@
 ﻿@using Blazor.Extensions.Canvas
 
-<BECanvas @ref="_canvas" Width="500" Height="500" @onmousemove="OnMouseMove"/>
+
+<div @ref="_div" @onmousemove="OnMouseMove" @onmouseleave="OnMouseLeave" @onmousedown="OnMouseDown">
+    <BECanvas @ref="_canvas" Width="500" Height="500" />
+</div>

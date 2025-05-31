@@ -10,6 +10,7 @@ namespace Battleships.ServiceDefaults
     {
         None,
         Water,
-        Ship
+        Ship,
+        Destroyed
     }
 }

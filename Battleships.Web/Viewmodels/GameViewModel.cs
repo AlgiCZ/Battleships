@@ -1,46 +1,104 @@
-﻿using Battleships.ServiceDefaults.Models;
+﻿using Battleships.ServiceDefaults;
+using Battleships.ServiceDefaults.Infrastructure;
+using Battleships.ServiceDefaults.Models;
+using Battleships.Web.Services;
+using System.Diagnostics;
 using System.Drawing;
 
 namespace Battleships.Web.Viewmodels
 {
     public class GameViewModel
     {
-        public int Id { get; init; }
-        public Size Dimension { get; init; }
-        public List<Impact> PlayerImpacts { get; init; } = [];
-        public List<Impact> OpponentImpacts { get; init; } = [];
-        public List<Ship> Player1Ships { get; init; }
-        public List<Ship> Player2Ships { get; init; }
-
+        public Size Dimension { get; private set; }
+        public List<Impact> PlayerImpacts { get; private set; } = [];
+        public List<Impact> OpponentImpacts { get; private set; } = [];
+        public List<Ship> PlayerShips { get; private set; }
+        public List<Size> Dimensions { get; }
         public GameStatus Status { get; private set; } = GameStatus.Unknown;
 
-        private Random _random = new Random();
+        public string Player1Name { get; set; } = "Player1";
+        public string Player2Name { get; set; } = "Player2";
 
-        public GameViewModel(Size dimension)
+        public string PlayerName { get; private set; }
+
+        public int Id { get; private set; }
+
+        private readonly IApiClient _client;
+
+        public GameViewModel(IApiClient client)
         {
-            Id = 1; // Example ID, should be set appropriately
+            _client = client;
+            Dimensions = [new Size(10, 10), new Size(10, 15), new Size(15, 10), new Size(15, 15), new Size(20, 20)];
+            Dimension = Dimensions[0];
+        }
+
+        public void SetDimension(Size dimension)
+        {
             Dimension = dimension;
-            Player1Ships = ShipFactory.CreateDefaulShips();
-            Player2Ships = ShipFactory.CreateDefaulShips();
-
-            RandomizeShips(Player1Ships);
-            RandomizeShips(Player2Ships);
         }
 
-        public void NewGame()
+        public async Task NewGameAsync()
         {
-            Status = GameStatus.Planning;
+            var response = await _client.AddGameAsync(new AddGameRequest(Player1Name, Player2Name, Dimension));
+            Id = response.GameId;
         }
 
-        public void ShufflePlayer1Ships()
+        public async Task JoinGame(int id, string playerName)
         {
-            ClearShipPositions(Player1Ships);
-            RandomizeShips(Player1Ships);
-        }   
+            Id = id;
+            PlayerName = playerName;
+            var game = await _client.JoinGame(new GetGameRequest(Id, PlayerName));
+            if (game != null)
+            {
+                Dimension = game.Dimension;
+                PlayerShips = [.. game.Ships];
+                PlayerImpacts = [.. game.PlayerImpacts];
+                OpponentImpacts = [.. game.OpponentImpacts];
+                Status = game.GameStatus;
+                Player1Name = game.Player1Name;
+                Player2Name = game.Player2Name;
+            }
+            else
+            {
+                throw new InvalidOperationException("Failed to create or join the game.");
+            }
+        }
 
-        public void StartGame()
+        public async Task ShufflePlayerShipsAsync()
         {
-            Status = GameStatus.Player1Turn + _random.Next(0, 1);
+            var response = await _client.GetRandomShipPositionsAsync(new GetRandomShipPositionsRequest(Id, PlayerName));
+            if (response != null && response.Ships != null && response.Ships.Count > 0)
+            {
+                PlayerShips = [.. response.Ships];
+            }
+            else
+            {
+                throw new InvalidOperationException("Failed to shuffle ships or no ships found.");
+            }
+        }
+
+        public async Task PlayerReady()
+        {
+            var gameStatus = await _client.SendPlayerReady(Id, PlayerName);
+            Status = gameStatus;
+        }
+
+        public async Task WaitForPlayerTurn()
+        {
+            var isPlayer1 = PlayerName == Player1Name;
+            while (true)
+            {
+                var gameStatus = await _client.GetGameStatus(Id);
+                Status = gameStatus;
+
+                if ((isPlayer1 && Status == GameStatus.Player1Turn) || (!isPlayer1 && Status == GameStatus.Player2Turn) || Status >= GameStatus.Player1Won)
+                {
+                    break;
+                }
+
+                await Task.Delay(1000);
+            }
+
         }
 
         public string GetGameStatusMessage()
@@ -61,6 +119,10 @@ namespace Battleships.Web.Viewmodels
                     return "Player 1 have won!";
                 case GameStatus.Player2Won:
                     return "Player 2 have won!";
+                case GameStatus.WaitingForPlayer1:
+                    return "Waiting for Player 1...";
+                case GameStatus.WaitingForPlayer2:
+                    return "Waiting for Player 2...";
                 default:
                     break;
             }
@@ -68,101 +130,17 @@ namespace Battleships.Web.Viewmodels
             return string.Empty;
         }
 
-        private static void ClearShipPositions(List<Ship> ships)
+        public async Task Shot(Point point)
         {
-            foreach (var ship in ships)
+            var impact = OpponentImpacts.FirstOrDefault(x => x.Point == point);
+            if (impact != null)
             {
-                ship.Position = null;
+                return;
             }
-        }
 
-        private void RandomizeShips(List<Ship> ships)
-        {
-            Random random = new Random();
-            while (!ships.All(s => s.Position.HasValue))
-            {
-                var availablePositions = new List<Point>();
-                for (int x = 0; x < Dimension.Width; x++)
-                {
-                    for (int y = 0; y < Dimension.Height; y++)
-                    {
-                        availablePositions.Add(new Point(x, y));
-                    }
-                }
-
-                ClearShipPositions(ships);
-
-                foreach (var ship in ships)
-                {
-                    var availablePositionsForShip = new List<Point>(availablePositions);
-                    while (!ship.Position.HasValue)
-                    {
-                        Point pos = availablePositionsForShip[random.Next(0, availablePositionsForShip.Count - 1)];
-                        if (IsValidPosition(ship, pos, ships))
-                        {
-                            ship.Position = pos;
-                            RemoveAllAdjancedPoints(ship, availablePositions);
-                            break;
-                        }
-
-                        availablePositionsForShip.Remove(pos);
-                        if (availablePositionsForShip.Count == 0)
-                            break;
-                    }
-
-                    if (!ship.Position.HasValue)
-                        break;
-                }
-            }
-        }
-
-        private static void RemoveAllAdjancedPoints(Ship ship, List<Point> availablePositions)
-        {
-            if (!ship.Position.HasValue)
-            {
-                throw new InvalidOperationException("Ship position is not set.");
-            }
-            foreach (var hull in ship.Hull)
-            {
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    for (int dy = -1; dy <= 1; dy++)
-                    {
-                        availablePositions.Remove(new Point(ship.Position.Value.X + hull.X + dx, ship.Position.Value.Y + hull.Y + dy));
-                    }
-                }
-            }
-        }
-
-        private bool IsValidPosition(Ship ship, Point position, List<Ship> allShips)
-        {
-            // Check if the ship can be placed at the given position
-            foreach (var hull in ship.Hull)
-            {
-                var point = new Point(position.X + hull.X, position.Y + hull.Y);
-                if (point.X < 0 || point.X >= Dimension.Width || point.Y < 0 || point.Y >= Dimension.Height)
-                {
-                    return false; // Out of bounds
-                }
-
-                if (allShips.Any(s => s.Position.HasValue && s.Hull.Any(h =>
-                    IsPointAround(point, new Point(s.Position.Value.X + h.X, s.Position.Value.Y + h.Y))
-                    )))
-                {
-                    return false; // Overlapping with another ship
-                }
-
-
-            }
-            return true; // Valid position
-        }
-
-        private bool IsPointAround(Point point, Point point2)
-        {
-            int dx = Math.Abs(point.X - point2.X);
-            int dy = Math.Abs(point.Y - point2.Y);
-
-            return dx <= 1 && dy <= 1;
+            var response = await _client.UpdateImpacts(Id, new UpdateImpactsRequest(Id, PlayerName, point));
+            Status = response.GameStatus;
+            OpponentImpacts = response.Impacts;
         }
     }
 }

@@ -1,43 +1,75 @@
-﻿using Battleships.ServiceDefaults.Models;
-using Battleships.Web.Components.Game;
+﻿using Battleships.Web.Components.Game;
 using Battleships.Web.Viewmodels;
+using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using System.Data;
 using System.Drawing;
+using System.Threading.Tasks;
 
 namespace Battleships.Web.Components.Pages
 {
     public partial class Home
     {
-        private GameViewModel _model = new GameViewModel(new Size(10, 10));
+        [Inject]
+        private GameViewModel Model { get; set; } = default!;
+
+        [Inject]
+        private NavigationManager NavigationManager { get; set; } = default!;
+
+        [Inject]
+        private IJSRuntime JSRuntime { get; set; } = default!;
+
+        [Parameter]
+        public string? PlayerName { get; set; }
+
+        [Parameter]
+        public int? GameId { get; set; }
 
         private BoardView? _p1Board;
         private BoardView? _p2Board;
 
-        protected override async Task OnInitializedAsync()
+        protected override async Task OnParametersSetAsync()
         {
-            //_model = await Http.GetFromJsonAsync<GameViewModel>("api/game/1");
-            //if (_model == null)
-            //{
-            //    throw new DataException("Game not found");
-            //}
-
-            await Task.CompletedTask;
+            if (GameId != null && PlayerName != null && (Model.Id != GameId || Model.PlayerName != PlayerName))
+            {
+                await Model.JoinGame(GameId.Value, PlayerName);
+                StateHasChanged();
+            }
+            base.OnParametersSet();
         }
 
-        private void NewGameClick()
+        private async void NewGameClick()
         {
-            _model.NewGame();
+            await Model.NewGameAsync();
+            NavigationManager.NavigateTo($"/{Model.Id}/{Model.Player1Name}");
+            var uri = NavigationManager.BaseUri + $"{Model.Id}/{Model.Player2Name}";
+            await JSRuntime.InvokeVoidAsync("open", uri, "_blank");
         }
 
-        private void ShuffleClick()
+        private async void ShuffleClick()
         {
-            _model.ShufflePlayer1Ships();
+            await Model.ShufflePlayerShipsAsync();
+            StateHasChanged();
             _p1Board?.Invalidate();
         }
 
-        private void StartGameClick()
+        private async void StartGameClick()
         {
-            _model.StartGame();
+            await Model.PlayerReady();
+            StateHasChanged();
+
+            await Model.WaitForPlayerTurn();
+        }
+
+        private async void OnImpact(Point point)
+        {
+            await Model.Shot(point);
+            StateHasChanged();
+            _p1Board?.Invalidate();
+            _p2Board?.Invalidate();
+
+
+            await Model.WaitForPlayerTurn();
         }
     }
 }
