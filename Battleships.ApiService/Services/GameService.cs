@@ -3,9 +3,6 @@ using Battleships.ApiService.Storage;
 using Battleships.ServiceDefaults;
 using Battleships.ServiceDefaults.Infrastructure;
 using Battleships.ServiceDefaults.Models;
-using System;
-using System.Drawing;
-using System.Linq;
 
 namespace Battleships.ApiService.Services
 {

@@ -15,6 +15,7 @@ namespace Battleships.Web.Viewmodels
         public List<Ship> PlayerShips { get; private set; }
         public List<Size> Dimensions { get; }
         public GameStatus Status { get; private set; } = GameStatus.Unknown;
+        public bool IsPlayer1 { get => PlayerName == Player1Name; }
 
         public string Player1Name { get; set; } = "Player1";
         public string Player2Name { get; set; } = "Player2";
@@ -30,7 +31,7 @@ namespace Battleships.Web.Viewmodels
             _client = client;
             Dimensions = [new Size(10, 10), new Size(10, 15), new Size(15, 10), new Size(15, 15), new Size(20, 20)];
             Dimension = Dimensions[0];
-        }
+        }        
 
         public void SetDimension(Size dimension)
         {
@@ -85,20 +86,18 @@ namespace Battleships.Web.Viewmodels
 
         public async Task WaitForPlayerTurn()
         {
-            var isPlayer1 = PlayerName == Player1Name;
             while (true)
             {
                 var gameStatus = await _client.GetGameStatus(Id);
                 Status = gameStatus;
 
-                if ((isPlayer1 && Status == GameStatus.Player1Turn) || (!isPlayer1 && Status == GameStatus.Player2Turn) || Status >= GameStatus.Player1Won)
+                if ((IsPlayer1 && Status == GameStatus.Player1Turn) || (!IsPlayer1 && Status == GameStatus.Player2Turn) || Status >= GameStatus.Player1Won)
                 {
                     break;
                 }
 
                 await Task.Delay(1000);
             }
-
         }
 
         public string GetGameStatusMessage()
@@ -112,9 +111,9 @@ namespace Battleships.Web.Viewmodels
                 case GameStatus.Planning:
                     return "Place your ships and start game.";
                 case GameStatus.Player1Turn:
-                    return "Your turn. Shoot";
+                    return IsPlayer1 ? "Your turn. Shoot" : "Player 1 turn. Wait";
                 case GameStatus.Player2Turn:
-                    return "Player 2 turn. Wait";
+                    return !IsPlayer1 ? "Your turn. Shoot" : "Player 2 turn. Wait";
                 case GameStatus.Player1Won:
                     return "Player 1 have won!";
                 case GameStatus.Player2Won:
@@ -129,9 +128,14 @@ namespace Battleships.Web.Viewmodels
 
             return string.Empty;
         }
-
+        
         public async Task Shot(Point point)
         {
+            if ((IsPlayer1 && Status != GameStatus.Player1Turn) || (!IsPlayer1 && Status != GameStatus.Player2Turn))
+            {
+                return;
+            }
+
             var impact = OpponentImpacts.FirstOrDefault(x => x.Point == point);
             if (impact != null)
             {

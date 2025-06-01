@@ -57,6 +57,8 @@ namespace Battleships.ApiService.Logic
 
         public void RandomizeShips(List<Ship> ships, Size dimension)
         {
+            //lets place it from the biggest ship
+            ships.Sort((x,y) => y.Hull.Count.CompareTo(x.Hull.Count));
             ClearShipPositions(ships);
             while (!ships.All(s => s.Position.HasValue))
             {

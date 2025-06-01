@@ -59,6 +59,7 @@ namespace Battleships.Web.Components.Pages
             StateHasChanged();
 
             await Model.WaitForPlayerTurn();
+            StateHasChanged();
         }
 
         private async void OnImpact(Point point)
@@ -68,8 +69,8 @@ namespace Battleships.Web.Components.Pages
             _p1Board?.Invalidate();
             _p2Board?.Invalidate();
 
-
             await Model.WaitForPlayerTurn();
+            StateHasChanged();
         }
     }
 }
